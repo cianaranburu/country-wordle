@@ -1,6 +1,7 @@
+import json
+import os
 import random
-from flask import Flask, render_template, request, jsonify
-from countries_data import COUNTRIES
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from game_logic import (
     is_valid_country,
     get_country_values,
@@ -11,8 +12,21 @@ from game_logic import (
 
 app = Flask(__name__)
 
-# In-memory storage for active web games (session_id -> game_state)
-# For simplicity, we use a single active game state dictionary
+@app.route("/countries.json")
+def serve_countries_json():
+    # This guarantees it looks in the exact same folder as app.py
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "countries.json")
+
+# Load countries data from countries.json on startup
+try:
+    with open("countries.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+        COUNTRIES = data.get("countries", data) 
+except Exception as e:
+    print(f"Error loading countries.json: {e}")
+    COUNTRIES = []
+
+# In-memory storage for active web games
 game_state = {
     "target_country": None,
     "guesses_history": [],
@@ -22,9 +36,30 @@ game_state = {
 }
 
 def start_new_game():
-    unique_continents = list(set(c["continent"] for c in COUNTRIES))
+    if not COUNTRIES:
+        return
+    
+    # Normalize COUNTRIES to a list of country name strings 
+    # regardless of whether the JSON contains strings, lists, or dicts
+    country_names = []
+    for item in COUNTRIES:
+        if isinstance(item, dict):
+            country_names.append(item.get("country") or item.get("name"))
+        elif isinstance(item, (list, tuple)):
+            country_names.append(item[0])
+        elif isinstance(item, str):
+            country_names.append(item)
+            
+    # Get full dictionary data for each country using game_logic
+    country_dicts = [get_country_values(name) for name in country_names if name]
+    country_dicts = [d for d in country_dicts if d and "continent" in d]
+    
+    if not country_dicts:
+        return
+
+    unique_continents = list(set(c["continent"] for c in country_dicts))
     chosen_continent = random.choice(unique_continents)
-    continent_countries = [c for c in COUNTRIES if c["continent"] == chosen_continent]
+    continent_countries = [c for c in country_dicts if c["continent"] == chosen_continent]
     
     game_state["target_country"] = random.choice(continent_countries)
     game_state["guesses_history"] = []

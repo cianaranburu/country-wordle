@@ -1,6 +1,21 @@
+import os
+import json
 import difflib
-from countries_data import COUNTRIES
-from country_aliases import COUNTRY_ALIASES
+
+# Load data directly from the unified countries.json file
+json_path = os.path.join(os.path.dirname(__file__), 'countries.json')
+with open(json_path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+# Countries is now a dict: { "Country Name": { "code": "...", "pop": ..., ... } }
+COUNTRIES_RAW = data["countries"]
+COUNTRY_ALIASES = data["aliases"]
+
+# Convert to a convenient list format for internal game loops & matching
+COUNTRIES = []
+for name, info in COUNTRIES_RAW.items():
+    country_dict = {"country": name, **info}
+    COUNTRIES.append(country_dict)
 
 # ANSI Color Codes
 GREEN = "\033[92m"
@@ -10,12 +25,17 @@ CYAN = "\033[96m"
 RESET = "\033[0m"
 
 def find_country(name):
+    if not name:
+        return None
     name_clean = name.strip().lower()
 
     # 1. Build a lowercased map of aliases on the fly to avoid case-sensitivity issues
-    alias_map = {k.lower(): v for k, v in COUNTRY_ALIASES.items()}
+    alias_map = {k.lower(): v.lower() for k, v in COUNTRY_ALIASES.items()}
     if name_clean in alias_map:
-        name_clean = alias_map[name_clean].lower()
+        canonical_name = alias_map[name_clean]
+        for c in COUNTRIES:
+            if c["country"].lower() == canonical_name:
+                return c
 
     # 2. Check for exact match in COUNTRIES
     for c in COUNTRIES:
