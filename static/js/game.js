@@ -1,4 +1,4 @@
-import { FLAG_MAP, norm, flagUrl, esc, flagImg, getCountryName, getCountryCode } from './utils.js';
+import { FLAG_MAP, norm, flagCode, flagUrl, esc, flagImg, getCountryName, getCountryCode } from './utils.js';
 import { fetchCountriesData, sendGuess, fetchHelp, postRestart } from './api.js';
 import { setMessage, setFinished, prependCard, updateInputFlag, tile, hideSuggest, triggerConfetti } from './ui.js';
 
